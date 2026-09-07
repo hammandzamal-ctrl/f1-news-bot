@@ -2,7 +2,6 @@ import os
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
-import re
 import html
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
