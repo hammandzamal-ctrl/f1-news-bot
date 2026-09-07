@@ -34,7 +34,7 @@ description = html.unescape(description)
 description = re.sub(r"<[^>]+>", "", description)
 description = re.sub(r"\s+", " ", description).strip()
 
-# Делаем текст новости немного подробнее
+# Ограничиваем длину новости
 if len(description) > 500:
     description = description[:500].rsplit(" ", 1)[0] + "..."
 
@@ -46,23 +46,49 @@ image_url = None
 try:
     page_request = urllib.request.Request(
         link,
-        headers={"User-Agent": "Mozilla/5.0"}
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+        }
     )
 
     with urllib.request.urlopen(page_request, timeout=20) as response:
         page = response.read().decode("utf-8", errors="ignore")
 
+    # Вариант 1: og:image, когда property идёт перед content
     match = re.search(
         r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
         page,
         re.IGNORECASE
     )
 
+    # Вариант 2: content идёт перед property
+    if not match:
+        match = re.search(
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+            page,
+            re.IGNORECASE
+        )
+
+    # Вариант 3: name="og:image"
+    if not match:
+        match = re.search(
+            r'<meta[^>]+(?:name|property)=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+            page,
+            re.IGNORECASE
+        )
+
     if match:
-        image_url = html.unescape(match.group(1))
+        image_url = html.unescape(match.group(1)).strip()
+
+        # Если ссылка относительная — превращаем её в полную
+        image_url = urllib.parse.urljoin(link, image_url)
+
+        print("Найдена фотография:", image_url)
+    else:
+        print("Фотография на странице не найдена")
 
 except Exception as e:
-    print("Фото не найдено:", e)
+    print("Ошибка при поиске фото:", e)
 
 # Отправляем в Telegram
 if image_url:
